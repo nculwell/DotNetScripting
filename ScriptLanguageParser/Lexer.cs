@@ -70,13 +70,15 @@ namespace ScriptLanguageParser
                 case '.': return new Token(TokenType.DOT);
                 case '(': return new Token(TokenType.LPAREN);
                 case ')': return new Token(TokenType.RPAREN);
-                case '{': return new Token(TokenType.LBRACKET);
-                case '}': return new Token(TokenType.RBRACKET);
+                case '{': return new Token(TokenType.LBRACE);
+                case '}': return new Token(TokenType.RBRACE);
                 case '+': return new Token(TokenType.ADD);
                 case '-': return new Token(TokenType.SUB);
                 case '*': return new Token(TokenType.MUL);
                 case '/': return new Token(TokenType.DIV);
                 case '=': return new Token(TokenType.EQU);
+                case '<': return new Token(TokenType.EQU);
+                case '>': return new Token(TokenType.EQU);
             }
             // Identifier or keyword.
             Match m = _identifier.Match(_sourceCode, _offset);
@@ -93,6 +95,11 @@ namespace ScriptLanguageParser
                     case "and": return new Token(TokenType.KWD_AND);
                     case "or": return new Token(TokenType.KWD_OR);
                     case "not": return new Token(TokenType.KWD_NOT);
+                    case "if": return new Token(TokenType.KWD_IF);
+                    case "then": return new Token(TokenType.KWD_THEN);
+                    case "else": return new Token(TokenType.KWD_ELSE);
+                    case "for": return new Token(TokenType.KWD_FOR);
+                    case "end": return new Token(TokenType.KWD_END);
                     default: return new Token(TokenType.IDENTIFIER, tokenText);
                 }
             }

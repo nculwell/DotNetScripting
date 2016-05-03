@@ -72,12 +72,12 @@ namespace ScriptLanguageParser
         {
             List<Statement> statements = new List<Statement>();
             _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.LBRACKET)
+            if (_lexer.CurrentToken.Type != TokenType.LBRACE)
                 throw new SyntaxException(_lexer, "Expected '{' to follow func arguments.");
             while (true)
             {
                 _lexer.Advance();
-                if (_lexer.CurrentToken.Type == TokenType.RBRACKET)
+                if (_lexer.CurrentToken.Type == TokenType.RBRACE)
                     break;
                 statements.Add(ParseStatement());
             }
