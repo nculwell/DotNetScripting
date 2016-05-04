@@ -95,13 +95,20 @@ namespace ScriptLanguageTests
 
         public void RunLexerTest(TextReader input, TextWriter output)
         {
-            string code = input.ReadToEnd();
-            Lexer lexer = new Lexer(code);
+            var lexer = new Lexer(input.ReadToEnd());
             while (lexer.FollowingToken.Type != TokenType.EOF)
             {
                 lexer.Advance();
                 output.WriteLine(lexer.CurrentToken.ToString());
             }
+        }
+
+        public void RunParserTest(TextReader input, TextWriter output)
+        {
+            var lexer = new Lexer(input.ReadToEnd());
+            var parser = new Parser(lexer);
+            var script = parser.ParseScript();
+            output.Write(script.ToString());
         }
     }
 }

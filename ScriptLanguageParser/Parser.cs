@@ -14,15 +14,15 @@ namespace ScriptLanguageParser
             _lexer = lexer;
         }
 
-        public IEnumerable<Statement> ParseScript()
+        public StatementBlock ParseScript()
         {
-            List<Statement> _statements = new List<Statement>();
+            List<Statement> statements = new List<Statement>();
             _lexer.Advance();
             while (true)
             {
                 if (_lexer.CurrentToken.Type == TokenType.EOF)
-                    return _statements;
-                _statements.Add(ParseStatement());
+                    return new StatementBlock(statements);
+                statements.Add(ParseStatement());
             }
         }
 
