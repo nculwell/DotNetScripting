@@ -1,0 +1,1 @@
+Syntax error [Parser:37] (line 9, col 1, token '(no token)'): Not expected in statement position.

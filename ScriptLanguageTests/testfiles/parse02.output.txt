@@ -1,0 +1,7 @@
+const x = 10
+var y = "abc"
+const z = 25
+var zz = "123""456"
+func abc() {
+  var n = 22
+}
