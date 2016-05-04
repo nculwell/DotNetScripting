@@ -17,10 +17,9 @@ namespace ScriptLanguageParser
         public StatementBlock ParseScript()
         {
             List<Statement> statements = new List<Statement>();
-            _lexer.Advance();
             while (true)
             {
-                if (_lexer.CurrentToken.Type == TokenType.EOF)
+                if (_lexer.FollowingToken.Type == TokenType.EOF)
                     return new StatementBlock(statements);
                 statements.Add(ParseStatement());
             }
@@ -28,33 +27,37 @@ namespace ScriptLanguageParser
 
         private Statement ParseStatement()
         {
-            switch (_lexer.CurrentToken.Type)
+            switch (_lexer.FollowingToken.Type)
             {
                 case TokenType.KWD_CONST: return ParseConst();
                 case TokenType.KWD_VAR: return ParseVar();
                 case TokenType.KWD_SET: return ParseSet();
                 case TokenType.KWD_FUNC: return ParseFunc();
                 default:
-                    throw new SyntaxException(_lexer, "Not expected in declaration position.");
+                    throw new SyntaxException(_lexer, "Not expected in statement position.");
             }
         }
 
         private Statement ParseFunc()
         {
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
-                throw new SyntaxException(_lexer, "Expected identifier to follow 'func'.");
-            var funcName = _lexer.CurrentToken.Text;
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.LPAREN)
-                throw new SyntaxException(_lexer, "Expected '(' to follow func name.");
+            Expect(TokenType.KWD_FUNC, "(predicted)");
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
+            //    throw new SyntaxException(_lexer, "Expected identifier to follow 'func'.");
+            //var funcName = _lexer.CurrentToken.Text;
+            var funcName = Expect(TokenType.IDENTIFIER, "func").Text;
+            Expect(TokenType.LPAREN, "func name");
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.LPAREN)
+            //    throw new SyntaxException(_lexer, "Expected '(' to follow func name.");
             List<string> funcArgs = new List<string>();
             _lexer.Advance();
             if (_lexer.CurrentToken.Type == TokenType.RPAREN)
                 return new FuncStatement(funcName, funcArgs, ParseFuncBody());
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
-                throw new SyntaxException(_lexer, "Expected func argument name to follow '('.");
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
+            //    throw new SyntaxException(_lexer, "Expected func argument name to follow '('.");
+            Expect(TokenType.IDENTIFIER, "(");
             while (true)
             {
                 _lexer.Advance();
@@ -71,35 +74,47 @@ namespace ScriptLanguageParser
         private StatementBlock ParseFuncBody()
         {
             List<Statement> statements = new List<Statement>();
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.LBRACE)
-                throw new SyntaxException(_lexer, "Expected '{' to follow func arguments.");
+            Expect(TokenType.LBRACE, "func arguments");
             while (true)
             {
-                _lexer.Advance();
-                if (_lexer.CurrentToken.Type == TokenType.RBRACE)
+                if (_lexer.FollowingToken.Type == TokenType.RBRACE)
+                {
+                    _lexer.Advance(); // consume the closing brace
                     break;
+                }
                 statements.Add(ParseStatement());
             }
             return new StatementBlock(statements);
         }
 
-        private ConstStatement ParseConst()
+        private Token Expect(TokenType type, string precedingContext)
         {
             _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
-                throw new SyntaxException(_lexer, "Expected identifier to follow 'const'.");
-            var constName = _lexer.CurrentToken.Text;
+            if (_lexer.CurrentToken.Type != type)
+                throw new SyntaxException(_lexer, "Expected identifier to follow '" + precedingContext + "'.");
+            return _lexer.CurrentToken;
+        }
+
+        private ConstStatement ParseConst()
+        {
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
+            //    throw new SyntaxException(_lexer, "Expected identifier to follow 'const'.");
+            //var constName = _lexer.CurrentToken.Text;
+            Expect(TokenType.KWD_CONST, "(begin statement)");
+            var constName = Expect(TokenType.IDENTIFIER, "const").Text;
             var constExpr = ParseAssignmentTail();
             return new ConstStatement(constName, constExpr);
         }
 
         private VarStatement ParseVar()
         {
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
-                throw new SyntaxException(_lexer, "Expected identifier to follow 'var'.");
-            var varName = _lexer.CurrentToken.Text;
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.IDENTIFIER)
+            //    throw new SyntaxException(_lexer, "Expected identifier to follow 'var'.");
+            //var varName = _lexer.CurrentToken.Text;
+            Expect(TokenType.KWD_VAR, "(begin statement)");
+            var varName = Expect(TokenType.IDENTIFIER, "var").Text;
             var initExpr = ParseAssignmentTail();
             return new VarStatement(varName, initExpr);
         }
@@ -117,10 +132,11 @@ namespace ScriptLanguageParser
 
         private Expr ParseAssignmentTail()
         {
-            _lexer.Advance();
-            if (_lexer.CurrentToken.Type != TokenType.EQU)
-                throw new SyntaxException(_lexer, "Expected '='.");
-            _lexer.Advance();
+            Expect(TokenType.EQU, "(assignment head)");
+            //_lexer.Advance();
+            //if (_lexer.CurrentToken.Type != TokenType.EQU)
+            //    throw new SyntaxException(_lexer, "Expected '='.");
+            //_lexer.Advance();
             return ParseExpr();
         }
 

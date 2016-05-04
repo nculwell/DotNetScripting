@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
@@ -9,11 +10,30 @@ namespace ScriptLanguageParser
     abstract class Statement
     {
         public abstract Value Interpret(Env env);
+        public abstract void PrettyPrint(TextWriter printer, int indent);
+        protected void Indent(TextWriter printer, int indent)
+        {
+            for (int i = 0; i < indent; i++)
+                printer.Write("  ");
+        }
+        public override string ToString()
+        {
+            var sw = new StringWriter();
+            PrettyPrint(sw, 0);
+            return sw.ToString();
+        }
     }
 
     abstract class Expr
     {
         public abstract Value Interpret(Env env);
+        public abstract void PrettyPrint(TextWriter printer, int indent);
+        public override string ToString()
+        {
+            var sw = new StringWriter();
+            PrettyPrint(sw, 0);
+            return sw.ToString();
+        }
     }
 
     class StatementBlock : Statement
@@ -33,6 +53,21 @@ namespace ScriptLanguageParser
             }
             return InternalValue.NoReturn;
         }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            //Indent(printer, indent);
+            //printer.WriteLine("{");
+            foreach (var stmt in _statements)
+            {
+                Indent(printer, indent);
+                stmt.PrettyPrint(printer, indent);
+                //Indent(printer, indent + 1);
+                //stmt.PrettyPrint(printer, indent + 1);
+                printer.WriteLine();
+            }
+            //Indent(printer, indent);
+            //printer.Write("}");
+        }
     }
 
     class ConstStatement : Statement
@@ -50,6 +85,11 @@ namespace ScriptLanguageParser
             env.BindValue(ConstName, constValue); // FIXME: Do something to make constants constant.
             return InternalValue.NoReturn;
         }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write(string.Format("const {0} = ", ConstName));
+            ConstExpr.PrettyPrint(printer, indent);
+        }
     }
 
     class VarStatement : Statement
@@ -66,6 +106,11 @@ namespace ScriptLanguageParser
             var constValue = InitExpr.Interpret(env);
             env.BindValue(VarName, constValue);
             return InternalValue.NoReturn;
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write(string.Format("var {0} = ", VarName));
+            InitExpr.PrettyPrint(printer, indent);
         }
     }
 
@@ -117,6 +162,13 @@ namespace ScriptLanguageParser
             }
             return InternalValue.NoReturn;
         }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write("set ");
+            LvalueRef.PrettyPrint(printer, indent);
+            printer.Write(" = ");
+            AssignmentExpr.PrettyPrint(printer, indent);
+        }
     }
 
     class FuncStatement : Statement
@@ -132,8 +184,19 @@ namespace ScriptLanguageParser
         }
         public override Value Interpret(Env env)
         {
-            env.BindValue(FuncName, new FuncValue(FuncName, FuncArgs, FuncBody));
+            env.BindValue(FuncName, new FuncValue(FuncName, env, FuncArgs, FuncBody));
             return InternalValue.NoReturn;
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write("func " + FuncName + "(");
+            printer.Write(string.Join(", ", FuncArgs));
+            //printer.WriteLine(")");
+            printer.WriteLine(") {");
+            //FuncBody.PrettyPrint(printer, indent);
+            FuncBody.PrettyPrint(printer, indent + 1);
+            Indent(printer, indent);
+            printer.Write("}");
         }
     }
 
@@ -144,6 +207,10 @@ namespace ScriptLanguageParser
         public override Value Interpret(Env env)
         {
             return LiteralValue;
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write(LiteralValue.ToString());
         }
     }
 
@@ -167,24 +234,33 @@ namespace ScriptLanguageParser
             if (funcValue.FuncArgs.Count() != FuncArgs.Count())
                 throw new Exception("Arguments to function don't match its definition.");
             // Create a new scope for the function call.
-            Env callEnv = new Env(env);
+            // Note that its parent is the *function's* environment,
+            // not the call environment!
+            Env callEnv = new Env(funcValue.FuncEnv);
             // Evaluate function arguments in the old scope and bind them in the new scope.
             for (int i = 0; i < funcValue.FuncArgs.Count(); i++)
             {
                 callEnv.BindValue(funcValue.FuncArgs[i], FuncArgs[i].Interpret(env));
             }
             // Execute the function body in the new scope.
-            var returnValue = funcValue.FuncBody.Interpret(callEnv);
+            var returnValue = funcValue.Call(callEnv);
             if ((object)returnValue == InternalValue.NoReturn)
                 return InternalValue.Void;
             return returnValue;
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write(FuncName + "(");
+            foreach (var funcArg in FuncArgs)
+                funcArg.PrettyPrint(printer, indent);
+            printer.Write(")");
         }
     }
 
     class IdentifierExpr : Expr
     {
         public string IdentifierName { get; }
-        public IList<string> PropNames { get; } // optional, null if not present
+        public IList<string> PropNames { get; } // may be empty, but not null
         public IdentifierExpr(string identifierName, List<string> properties)
         {
             IdentifierName = identifierName;
@@ -211,17 +287,53 @@ namespace ScriptLanguageParser
                 return Value.FromNative(obj);
             }
         }
-        public override string ToString()
+        public override void PrettyPrint(TextWriter printer, int indent)
         {
-            string s = IdentifierName;
-            foreach (var propName in PropNames)
-                s += "." + propName;
-            return s;
+            var namePieces = new List<string>();
+            namePieces.Add(IdentifierName);
+            namePieces.AddRange(PropNames);
+            printer.Write(string.Join(".", namePieces));
         }
     }
 
     enum BinOp { MUL, DIV, ADD, SUB, EQU, NEQ, GT, LT, AND, OR, }
     enum UnaryOp { PLUS, MINUS, NOT, }
+
+    /// <summary>
+    /// Methods to display BinOp and UnaryOp values as strings.
+    /// </summary>
+    static class OpStringification
+    {
+        public static string StringRepr(this BinOp op)
+        {
+            switch (op)
+            {
+                case BinOp.ADD: return "+";
+                case BinOp.SUB: return "-";
+                case BinOp.MUL: return "*";
+                case BinOp.DIV: return "/";
+                case BinOp.AND: return "and";
+                case BinOp.OR: return "or";
+                case BinOp.EQU: return "=";
+                case BinOp.NEQ: return "<>";
+                case BinOp.GT: return ">";
+                case BinOp.LT: return "<";
+                default: throw new NotImplementedException(
+                    "Unexpected binary operator: " + op.ToString());
+            }
+        }
+        public static string StringRepr(this UnaryOp op, Expr operand)
+        {
+            switch (op)
+            {
+                case UnaryOp.PLUS: return "+(" + operand.ToString() + ")";
+                case UnaryOp.MINUS: return "-(" + operand.ToString() + ")";
+                case UnaryOp.NOT: return "not (" + operand.ToString() + ")";
+                default: throw new NotImplementedException(
+                    "Unexpected unary operator: " + op.ToString());
+            }
+        }
+    }
 
     class UnaryOpExpr : Expr
     {
@@ -251,6 +363,10 @@ namespace ScriptLanguageParser
                 default:
                     throw new NotImplementedException("Unexpected operator: " + ExprOperator.ToString());
             }
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            printer.Write(ExprOperator.StringRepr(Operand));
         }
     }
 
@@ -303,6 +419,11 @@ namespace ScriptLanguageParser
                 default:
                     throw new NotImplementedException("Unexpected operator: " + ExprOperator.ToString());
             }
+        }
+        public override void PrettyPrint(TextWriter printer, int indent)
+        {
+            var str = string.Format("({0}) {1} ({2})", Lhs, ExprOperator.StringRepr(), Rhs);
+            printer.Write(str);
         }
     }
 }

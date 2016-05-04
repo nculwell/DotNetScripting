@@ -22,6 +22,26 @@ namespace ScriptLanguageTests
             }
             Console.WriteLine("Running lexer tests.");
             RunTestBatch("lex*", RunLexerTest);
+            Console.WriteLine("Running parser tests.");
+            RunTestBatch("parse*", RunParserTest);
+        }
+
+        public void RunLexerTest(TextReader input, TextWriter output)
+        {
+            var lexer = new Lexer(input.ReadToEnd());
+            while (lexer.FollowingToken.Type != TokenType.EOF)
+            {
+                lexer.Advance();
+                output.WriteLine(lexer.CurrentToken.ToString());
+            }
+        }
+
+        public void RunParserTest(TextReader input, TextWriter output)
+        {
+            var lexer = new Lexer(input.ReadToEnd());
+            var parser = new Parser(lexer);
+            var script = parser.ParseScript();
+            output.Write(script.ToString());
         }
 
         public void RunTestBatch(string filenamePattern, TestRunner runner)
@@ -39,14 +59,19 @@ namespace ScriptLanguageTests
                     {
                         try
                         {
-                            RunLexerTest(input, output);
+                            runner(input, output);
                         }
                         catch (Exception ex)
                         {
                             output.WriteLine(ex.Message);
-                            continue;
+                            //output.WriteLine(ex.ToString());
                         }
                     }
+                }
+                if (!File.Exists(expectedOutputFilename))
+                {
+                    Console.WriteLine("[FAIL] Expected output file not found: " + Path.GetFileName(expectedOutputFilename));
+                    continue;
                 }
                 using (var expectedOutput = new StreamReader(expectedOutputFilename))
                 {
@@ -91,24 +116,6 @@ namespace ScriptLanguageTests
             var testDir = Path.Combine(Environment.CurrentDirectory, @"..\..\testfiles");
             var files = Directory.GetFiles(testDir, filenamePattern);
             return files;
-        }
-
-        public void RunLexerTest(TextReader input, TextWriter output)
-        {
-            var lexer = new Lexer(input.ReadToEnd());
-            while (lexer.FollowingToken.Type != TokenType.EOF)
-            {
-                lexer.Advance();
-                output.WriteLine(lexer.CurrentToken.ToString());
-            }
-        }
-
-        public void RunParserTest(TextReader input, TextWriter output)
-        {
-            var lexer = new Lexer(input.ReadToEnd());
-            var parser = new Parser(lexer);
-            var script = parser.ParseScript();
-            output.Write(script.ToString());
         }
     }
 }

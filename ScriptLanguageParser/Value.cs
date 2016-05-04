@@ -18,22 +18,14 @@ namespace ScriptLanguageParser
         {
             switch (val.GetType().FullName)
             {
-                case "System.String":
-                    return new StringValue(val as string);
-                case "System.Int32":
-                    return new NumberValue(new decimal((Int32)val));
-                case "System.Int64":
-                    return new NumberValue(new decimal((Int64)val));
-                case "System.UInt32":
-                    return new NumberValue(new decimal((UInt32)val));
-                case "System.UInt64":
-                    return new NumberValue(new decimal((UInt64)val));
-                case "System.Decimal":
-                    return new NumberValue((Decimal)val);
-                case "System.Boolean":
-                    return BoolValue.FromBool((Boolean)val);
-                default:
-                    throw new ArgumentException(
+                case "System.String": return new StringValue(val as string);
+                case "System.Int32": return new NumberValue(new decimal((Int32)val));
+                case "System.Int64": return new NumberValue(new decimal((Int64)val));
+                case "System.UInt32": return new NumberValue(new decimal((UInt32)val));
+                case "System.UInt64": return new NumberValue(new decimal((UInt64)val));
+                case "System.Decimal": return new NumberValue((Decimal)val);
+                case "System.Boolean": return BoolValue.FromBool((Boolean)val);
+                default: throw new ArgumentException(
                         "Unable to wrap native value of type '" + val.GetType().FullName + "'.");
             }
         }
@@ -68,6 +60,10 @@ namespace ScriptLanguageParser
         {
             throw new NotImplementedException("InternalValue cannot be compared.");
         }
+        public override string ToString()
+        {
+            return (object)this == _noReturn ? "NoReturn" : "Void";
+        }
     }
 
     class BoolValue : Value
@@ -89,7 +85,10 @@ namespace ScriptLanguageParser
             var r = rhs as BoolValue;
             return FromBool(r != null && IsTrue == rhs.IsTrue);
         }
-
+        public override string ToString()
+        {
+            return _isTrue ? "True" : "False";
+        }
     }
 
     class StringValue : Value
@@ -101,6 +100,10 @@ namespace ScriptLanguageParser
         {
             var r = rhs as StringValue;
             return BoolValue.FromBool(r != null && String == r.String);
+        }
+        public override string ToString()
+        {
+            return "\"" + String + "\"";
         }
     }
 
@@ -115,23 +118,40 @@ namespace ScriptLanguageParser
             var r = rhs as NumberValue;
             return BoolValue.FromBool(r != null && Number == r.Number);
         }
+        public override string ToString()
+        {
+            return Number.ToString();
+        }
     }
 
     class FuncValue : Value
     {
         public override string TypeName { get { return "Function"; } }
         public string FuncName { get; }
+        public Env FuncEnv { get; }
         public List<string> FuncArgs { get; }
-        public StatementBlock FuncBody { get; }
-        public FuncValue(string funcName, List<string> funcArgs, StatementBlock funcBody)
+        private StatementBlock _funcBody;
+        public FuncValue(string funcName, Env funcEnv, List<string> funcArgs, StatementBlock funcBody)
         {
             FuncName = funcName;
+            FuncEnv = funcEnv;
             FuncArgs = funcArgs;
-            FuncBody = funcBody;
+            _funcBody = funcBody;
+        }
+        public Value Call(Env callEnv)
+        {
+            // This is defined here so it can be overridden.
+            // The callEnv argument has the function arguments
+            // bound in the local scope.
+            return _funcBody.Interpret(callEnv);
         }
         public override Value Equ(Value rhs)
         {
             return BoolValue.FromBool((object)this == rhs);
+        }
+        public override string ToString()
+        {
+            return "<func:" + FuncName + ">";
         }
     }
 
@@ -150,6 +170,10 @@ namespace ScriptLanguageParser
         public override Value Equ(Value rhs)
         {
             return BoolValue.FromBool(NativeObject == rhs);
+        }
+        public override string ToString()
+        {
+            return "<object:" + NativeObject.GetType().FullName + ">";
         }
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace ScriptLanguageParser
@@ -8,11 +10,14 @@ namespace ScriptLanguageParser
     [Serializable]
     public class SyntaxException : Exception
     {
-        internal SyntaxException(Lexer lexer, string message)
-            : base(string.Format("Syntax error (line {0}, col {1}, token '{2}'): {3}",
+        internal SyntaxException(Lexer lexer,string message,
+                        [CallerFilePath] string file = "",
+                        [CallerMemberName] string member = "",
+                        [CallerLineNumber] int line = 0)
+            : base(string.Format("Syntax error [{4}:{6}] (line {0}, col {1}, token '{2}'): {3}",
                 lexer.Line, lexer.Column,
                 lexer.CurrentToken?.Text ?? lexer.FollowingToken?.Text ?? "(no token)",
-                message))
+                message, Path.GetFileNameWithoutExtension(file), member, line))
         { }
     }
 

@@ -47,6 +47,12 @@
   <ItemGroup>
     <Content Include="testfiles\lex1.output.txt" />
     <Content Include="testfiles\lex1.input.txt" />
+    <Content Include="testfiles\lex1.testout.txt" />
+    <Content Include="testfiles\parse02.input.txt" />
+    <Content Include="testfiles\parse01.input.txt" />
+    <Content Include="testfiles\parse01.output.txt" />
+    <Content Include="testfiles\parse01.testout.txt" />
+    <Content Include="testfiles\parse02.output.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ScriptLanguageParser\ScriptLanguageParser.csproj">
