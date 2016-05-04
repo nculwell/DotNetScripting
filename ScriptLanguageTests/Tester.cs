@@ -10,11 +10,24 @@ namespace ScriptLanguageTests
 {
     class Tester
     {
- 
-        public void RunLexerTests()
+        public delegate void TestRunner(TextReader input, TextWriter output);
+
+        public void RunTests()
         {
-            var lexerTestFiles = ListTests("lex*.input.txt");
-            foreach (var inputFilename in lexerTestFiles)
+            Console.WriteLine("Deleting old test output.");
+            var testOutputFilenames = ListTests("*.testout.txt");
+            foreach (var filename in testOutputFilenames)
+            {
+                File.Delete(filename);
+            }
+            Console.WriteLine("Running lexer tests.");
+            RunTestBatch("lex*", RunLexerTest);
+        }
+
+        public void RunTestBatch(string filenamePattern, TestRunner runner)
+        {
+            var testInputFilenames = ListTests(filenamePattern + ".input.txt");
+            foreach (var inputFilename in testInputFilenames)
             {
                 var expectedOutputFilename = inputFilename.Replace(".input.", ".output.");
                 var testOutputFilename = inputFilename.Replace(".input.", ".testout.");

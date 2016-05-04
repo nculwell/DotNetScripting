@@ -11,7 +11,7 @@ namespace ScriptLanguageTests
         static void Main(string[] args)
         {
             var t = new Tester();
-            t.RunLexerTests();
+            t.RunTests();
             Console.Write("Press a key to exit...");
             Console.ReadKey();
         }
