@@ -9,8 +9,10 @@ namespace ScriptLanguageParser
     public class SyntaxException : Exception
     {
         internal SyntaxException(Lexer lexer, string message)
-            : base(string.Format("Syntax error (line {0}, col{1}, token '{2}'): {3}",
-                lexer.Line, lexer.Column, lexer.CurrentToken.Text, message))
+            : base(string.Format("Syntax error (line {0}, col {1}, token '{2}'): {3}",
+                lexer.Line, lexer.Column,
+                lexer.CurrentToken?.Text ?? lexer.FollowingToken?.Text ?? "(no token)",
+                message))
         { }
     }
 

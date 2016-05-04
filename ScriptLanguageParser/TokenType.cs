@@ -53,6 +53,7 @@ namespace ScriptLanguageParser
         KWD_ELSE,
         KWD_FOR,
         KWD_END,
-
+        GT,
+        LT,
     }
 }

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ScriptLanguageParser
 {
-    class Token
+    internal class Token
     {
         public TokenType Type { get; }
         public string Text { get; }
@@ -19,6 +19,16 @@ namespace ScriptLanguageParser
         public decimal AsNumber()
         {
             return decimal.Parse(Text);
+        }
+        public override string ToString()
+        {
+            switch (Type)
+            {
+                case TokenType.IDENTIFIER: return "ID(" + Text + ")";
+                case TokenType.STRING: return "String(\"" + Text.Replace("\"", "\"\"") + "\")";
+                case TokenType.NUMBER: return "Number(" + AsNumber().ToString() + ")";
+                default: return Type.ToString();
+            }
         }
     }
 }

@@ -11,9 +11,9 @@ namespace ScriptLanguageParser
         private readonly string _sourceCode;
         private int _offset;
         private int _lineStartOffset;
-        private readonly Regex _identifier = new Regex(@"^\p{alpha}\p{alnum}*");
+        private readonly Regex _identifier = new Regex(@"^[A-Za-z][A-Za-z0-9]*");
         private readonly Regex _string = new Regex("^\"([^\"]|\"\")*\"");
-        private readonly Regex _number = new Regex(@"^(\p{digit}+(\.\p{digit}*)?|\.\p{digit}+)");
+        private readonly Regex _number = new Regex(@"^([0-9]+(\.[0-9]*)?|\.[0-9]+)");
 
         /// <summary>
         /// The line in the source code that the current token is in.
@@ -58,13 +58,20 @@ namespace ScriptLanguageParser
                 }
                 _offset = _offset + 1;
             }
+
             // EOF.
             if (_offset == _sourceCode.Length)
             {
                 return new Token(TokenType.EOF);
             }
+
+            // Save the start of the token and advance the offset to the next character.
+            var tokenStartOffset = _offset;
+            var firstChar = _sourceCode[_offset];
+            _offset += 1;
+
             // Punctuation tokens.
-            switch (_sourceCode[_offset])
+            switch (firstChar)
             {
                 case ',': return new Token(TokenType.COMMA);
                 case '.': return new Token(TokenType.DOT);
@@ -77,15 +84,19 @@ namespace ScriptLanguageParser
                 case '*': return new Token(TokenType.MUL);
                 case '/': return new Token(TokenType.DIV);
                 case '=': return new Token(TokenType.EQU);
-                case '<': return new Token(TokenType.EQU);
-                case '>': return new Token(TokenType.EQU);
+                case '<': return new Token(TokenType.GT);
+                case '>': return new Token(TokenType.LT);
             }
+
             // Identifier or keyword.
-            Match m = _identifier.Match(_sourceCode, _offset);
-            if (m.Success)
+            if (char.IsLetter(firstChar))
             {
-                var tokenText = m.Groups[0].Value;
-                _offset += tokenText.Length;
+                while (_offset < _sourceCode.Length && char.IsLetterOrDigit(_sourceCode[_offset]))
+                {
+                    _offset += 1;
+                }
+                var tokenText = _sourceCode.Substring(tokenStartOffset, _offset - tokenStartOffset);
+                // See if this token is a keyword. If not, it's an identifier.
                 switch (tokenText)
                 {
                     case "const": return new Token(TokenType.KWD_CONST);
@@ -103,21 +114,63 @@ namespace ScriptLanguageParser
                     default: return new Token(TokenType.IDENTIFIER, tokenText);
                 }
             }
-            m = _string.Match(_sourceCode, _offset);
-            if (m.Success)
+
+            // Number beginning with a digit.
+            if (char.IsDigit(firstChar))
             {
-                var tokenText = m.Groups[0].Value;
-                _offset += tokenText.Length;
-                return new Token(TokenType.STRING, tokenText.Substring(1, tokenText.Length - 2));
-            }
-            m = _number.Match(_sourceCode, _offset);
-            if (m.Success)
-            {
-                var tokenText = m.Groups[0].Value;
-                _offset += tokenText.Length;
+                // Read a string of digits.
+                while (_offset < _sourceCode.Length && char.IsDigit(_sourceCode[_offset]))
+                {
+                    _offset += 1;
+                }
+                // If the next character is a decimal point, include it, and read more digits following.
+                if (_offset < _sourceCode.Length && _sourceCode[_offset] == '.')
+                {
+                    do _offset += 1;
+                    while (_offset < _sourceCode.Length && char.IsDigit(_sourceCode[_offset]));
+                }
+                var tokenText = _sourceCode.Substring(tokenStartOffset, _offset - tokenStartOffset);
                 return new Token(TokenType.NUMBER, tokenText);
             }
-            throw new SyntaxException(this, "Unexpected character scanned.");
+
+            // Number beginning with a decimal point.
+            if (firstChar == '.')
+            {
+                // Read a string of digits.
+                while (_offset < _sourceCode.Length && char.IsDigit(_sourceCode[_offset]))
+                {
+                    _offset += 1;
+                }
+                var tokenText = _sourceCode.Substring(tokenStartOffset, _offset - tokenStartOffset);
+                return new Token(TokenType.NUMBER, tokenText);
+            }
+
+            // Quoted string.
+            if (firstChar == '"')
+            {
+                // Read until matching quote is found. Repeat as long as the character
+                // following the matching quote is another quote. This has the effect
+                // of escaping a quote character by doubling it.
+                do
+                {
+                    do
+                    {
+                        _offset += 1;
+                    } while (_offset < _sourceCode.Length && _sourceCode[_offset] != '"');
+                    _offset += 1;
+                } while (_offset < _sourceCode.Length && _sourceCode[_offset] == '"');
+                if (_offset == _sourceCode.Length)
+                {
+                    throw new SyntaxException(this, "Unterminated string literal.");
+                }
+                // Text of string token strips out the beginning and ending quotes
+                // and reduces quote pairs to single quote characters.
+                var tokenText = _sourceCode.Substring(tokenStartOffset + 1, _offset - tokenStartOffset - 2);
+                tokenText = tokenText.Replace("\"\"", "\"");
+                return new Token(TokenType.STRING, tokenText);
+            }
+
+            throw new SyntaxException(this, "Unexpected character scanned ('"+ firstChar + "').");
         }
     }
 }
