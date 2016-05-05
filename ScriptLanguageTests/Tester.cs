@@ -24,6 +24,8 @@ namespace ScriptLanguageTests
             RunTestBatch("lex*", RunLexerTest);
             Console.WriteLine("Running parser tests.");
             RunTestBatch("parse*", RunParserTest);
+            Console.WriteLine("Running interpreter tests.");
+            RunTestBatch("interp*", RunInterpreterTest);
         }
 
         public void RunLexerTest(TextReader input, TextWriter output)
@@ -41,6 +43,15 @@ namespace ScriptLanguageTests
             var lexer = new Lexer(input.ReadToEnd());
             var parser = new Parser(lexer);
             var script = parser.ParseScript();
+            output.Write(script.ToString());
+        }
+
+        public void RunInterpreterTest(TextReader input, TextWriter output)
+        {
+            var lexer = new Lexer(input.ReadToEnd());
+            var parser = new Parser(lexer);
+            var script = parser.ParseScript();
+            var returnValue = script.Interpret(new Env());
             output.Write(script.ToString());
         }
 
